@@ -1,0 +1,9 @@
+# Copy to .dev.vars and fill in. Set the same values as Worker secrets for production:
+#   wrangler secret put CLOUDFLARE_ACCOUNT_ID
+#   wrangler secret put CLOUDFLARE_API_TOKEN
+
+# Cloudflare account that owns the AI Gateways and Workers AI.
+CLOUDFLARE_ACCOUNT_ID=your-account-id
+
+# API token with Workers AI / AI Gateway access (used for the remote AI binding).
+CLOUDFLARE_API_TOKEN=your-cloudflare-api-token

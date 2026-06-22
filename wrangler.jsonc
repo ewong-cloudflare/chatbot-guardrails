@@ -1,0 +1,56 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chatbot-guardrails-dlp",
+  "account_id": "4b4dd89ae17661da1cb0ae3b6d35ebe3",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-06-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/agents/*", "/oauth/*", "/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "ChatAgent",
+        "name": "ChatAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "new_sqlite_classes": ["ChatAgent"],
+      "tag": "v1"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
+  },
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "chatbot-bucket"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "chatbot_branding",
+      "id": "a779633adef44464ad1df6ca269278d9"
+    }
+  ],
+  "vars": {
+    "R2_PUBLIC_URL": "https://chatbot-images.acmecorp.work",
+    "GUARDRAILS_GATEWAY": "realacmecorp-zt-demos",
+    "NO_GUARDRAILS_GATEWAY": "realacmecorp-zt-demos-no-guardrail"
+  },
+  "upload_source_maps": true
+}

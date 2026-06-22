@@ -1,0 +1,53 @@
+{
+  "name": "chatbot-guardrails-dlp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare AI Gateway chatbot demo with a guardrails toggle and a KV-backed styling admin panel",
+  "keywords": [
+    "agents",
+    "ai",
+    "cloudflare"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "start": "vite dev",
+    "deploy": "vite build && wrangler deploy",
+    "types": "wrangler types env.d.ts --include-runtime false",
+    "format": "oxfmt --write .",
+    "lint": "oxlint src/",
+    "check": "oxfmt --check . && oxlint src/ && tsc"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^3.0.73",
+    "@cloudflare/ai-chat": "^0.8.6",
+    "@cloudflare/kumo": "^2.5.2",
+    "@phosphor-icons/react": "^2.1.10",
+    "@streamdown/code": "^1.1.1",
+    "agents": "^0.16.2",
+    "ai": "^6.0.208",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "streamdown": "^2.5.0",
+    "workers-ai-provider": "^3.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-decorators": "^8.0.2",
+    "@cloudflare/vite-plugin": "1.42.1",
+    "@cloudflare/workers-types": "^4.20260619.1",
+    "@rolldown/plugin-babel": "^0.2.3",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "wrangler": "^4.103.0"
+  }
+}

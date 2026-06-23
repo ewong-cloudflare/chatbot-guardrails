@@ -1,0 +1,52 @@
+import { describe, it, expect } from "vitest";
+import { describeGatewayError } from "./errors";
+
+describe("describeGatewayError", () => {
+  it("maps 2016 to a prompt guardrail message", () => {
+    expect(describeGatewayError(new Error("error 2016: blocked"))).toBe(
+      "Your prompt was blocked by a content guardrail."
+    );
+  });
+
+  it("maps 2017 to a response guardrail message", () => {
+    expect(describeGatewayError(new Error("code 2017"))).toBe(
+      "The response was blocked by a content guardrail."
+    );
+  });
+
+  it("maps 2029 to a DLP request message", () => {
+    expect(describeGatewayError(new Error("2029 violation"))).toBe(
+      "Your message was blocked by a Data Loss Prevention (DLP) policy."
+    );
+  });
+
+  it("maps 2030 to a DLP response message", () => {
+    expect(describeGatewayError(new Error("2030 violation"))).toBe(
+      "The response was blocked by a Data Loss Prevention (DLP) policy."
+    );
+  });
+
+  it("appends best-effort DLP profile detail when present", () => {
+    const err = new Error(
+      'blocked 2029 {"findings":[{"profile":{"profile_id":"Credit Card"}}],"action":"BLOCK"}'
+    );
+    expect(describeGatewayError(err)).toBe(
+      "Your message was blocked by a Data Loss Prevention (DLP) policy: Credit Card."
+    );
+  });
+
+  it("returns a generic message for unknown errors", () => {
+    expect(describeGatewayError(new Error("network down"))).toBe(
+      "Something went wrong while generating a response. Please try again."
+    );
+  });
+
+  it("handles non-Error values without throwing", () => {
+    expect(describeGatewayError("2016")).toBe(
+      "Your prompt was blocked by a content guardrail."
+    );
+    expect(describeGatewayError(undefined)).toBe(
+      "Something went wrong while generating a response. Please try again."
+    );
+  });
+});

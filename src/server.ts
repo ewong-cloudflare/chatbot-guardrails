@@ -13,6 +13,7 @@ import { z } from "zod";
 import { BRANDING_KEY, normalizeBranding, type Branding } from "./branding";
 import { DEFAULT_MODEL } from "./models";
 import { describeGatewayError } from "./errors";
+import { getSessionName } from "./auth";
 
 type ChatState = {
   guardrailsEnabled: boolean;
@@ -318,14 +319,37 @@ async function handleBranding(request: Request, env: Env): Promise<Response> {
   return new Response("Method not allowed", { status: 405 });
 }
 
+// For authenticated users, force the Durable Object instance name to the
+// verified identity so the client cannot choose another user's session.
+// Anonymous users keep the client-provided name (a localStorage id).
+async function withSessionRouting(
+  request: Request,
+  url: URL,
+  env: Env
+): Promise<Request> {
+  const sessionName = await getSessionName(request, env);
+  if (!sessionName) return request;
+
+  const segments = url.pathname.split("/"); // ["", "agents", "<agent>", "<name>", ...]
+  if (segments.length < 4) return request;
+
+  segments[3] = sessionName;
+  const newUrl = new URL(url);
+  newUrl.pathname = segments.join("/");
+  return new Request(newUrl, request);
+}
+
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/branding") {
       return handleBranding(request, env);
     }
+    const routed = url.pathname.startsWith("/agents/")
+      ? await withSessionRouting(request, url, env)
+      : request;
     return (
-      (await routeAgentRequest(request, env)) ||
+      (await routeAgentRequest(routed, env)) ||
       new Response("Not found", { status: 404 })
     );
   }

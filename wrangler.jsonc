@@ -50,7 +50,9 @@
   "vars": {
     "R2_PUBLIC_URL": "https://chatbot-images.acmecorp.work",
     "GUARDRAILS_GATEWAY": "realacmecorp-zt-demos",
-    "NO_GUARDRAILS_GATEWAY": "realacmecorp-zt-demos-no-guardrail"
+    "NO_GUARDRAILS_GATEWAY": "realacmecorp-zt-demos-no-guardrail",
+    "ACCESS_TEAM_DOMAIN": "realacmecorp.cloudflareaccess.com",
+    "ACCESS_AUD": "b14960624a389d5c55b745220c224a717fd0a3c1055af637965c310a87c13046"
   },
   "upload_source_maps": true
 }

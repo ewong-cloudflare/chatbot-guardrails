@@ -1,12 +1,26 @@
 import { createWorkersAI } from "workers-ai-provider";
 import { callable, routeAgentRequest, type Schedule } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
-import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
-import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
+import {
+  AIChatAgent,
+  type ChatResponseResult,
+  type OnChatMessageOptions
+} from "@cloudflare/ai-chat";
+import {
+  convertToModelMessages,
+  pruneMessages,
+  stepCountIs,
+  streamText,
+  tool
+} from "ai";
 import { z } from "zod";
 import { BRANDING_KEY, normalizeBranding, type Branding } from "./branding";
 import { DEFAULT_MODEL } from "./models";
-import { describeGatewayError } from "./errors";
+import {
+  describeGatewayError,
+  isGatewayBlockMessage,
+  isRefusalMessage
+} from "./errors";
 import { getSessionName } from "./auth";
 
 type ChatState = {
@@ -101,11 +115,13 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
     const result = streamText({
       model: workersAI(this.state.model || DEFAULT_MODEL),
       system,
-      // Single-turn: each request is independent. Only the latest user message
-      // is sent to the model, so earlier messages (including model refusals or
-      // blocked prompts) are never replayed. The full conversation is still
-      // persisted and shown in the UI.
-      messages: await convertToModelMessages(this.messages.slice(-1)),
+      // Multi-turn: send the full conversation for context. Blocked prompts and
+      // model-refusal turns are removed from history in onChatResponse(), so
+      // they are never replayed as context on later messages.
+      messages: pruneMessages({
+        messages: await convertToModelMessages(this.messages),
+        toolCalls: "before-last-2-messages"
+      }),
       tools: {
         // MCP tools from connected servers
         ...mcpTools,
@@ -275,6 +291,42 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
     });
     return result.toUIMessageStreamResponse({
       onError: describeGatewayError
+    });
+  }
+
+  // Runs after each turn finishes. Drop the turn from history when either the
+  // AI Gateway blocked it, or the model itself refused to answer — so the
+  // offending prompt (and any refusal) isn't replayed on later turns. All
+  // other turns stay, preserving multi-turn context.
+  protected async onChatResponse(result: ChatResponseResult) {
+    if (result.status === "error") {
+      if (isGatewayBlockMessage(result.error)) await this.dropLastTurn();
+      return;
+    }
+    if (result.status === "completed") {
+      const text = result.message.parts
+        .map((part) =>
+          "text" in part && typeof part.text === "string" ? part.text : ""
+        )
+        .join(" ");
+      if (isRefusalMessage(text)) await this.dropLastTurn();
+    }
+  }
+
+  // Remove the most recent user message and anything after it (the assistant
+  // reply or empty placeholder for that turn) from persisted history.
+  private async dropLastTurn() {
+    const messages = this.messages;
+    let lastUserIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        lastUserIndex = i;
+        break;
+      }
+    }
+    if (lastUserIndex < 0) return;
+    await this.persistMessages(messages.slice(0, lastUserIndex), [], {
+      _deleteStaleRows: true
     });
   }
 

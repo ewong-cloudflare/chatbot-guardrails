@@ -15,6 +15,38 @@ const CODE_MESSAGES: Record<string, string> = {
   "2030": DLP_RESPONSE
 };
 
+// Prefixes of every block message. DLP messages may carry a ": <profile>."
+// suffix, so we match on the stem (trailing period removed).
+const BLOCK_MESSAGE_PREFIXES = [
+  GUARDRAIL_PROMPT,
+  GUARDRAIL_RESPONSE,
+  DLP_REQUEST.replace(/\.$/, ""),
+  DLP_RESPONSE.replace(/\.$/, "")
+];
+
+// True when a (already-mapped) error message represents an AI Gateway block,
+// as opposed to a generic failure.
+export function isGatewayBlockMessage(message: string | undefined): boolean {
+  if (!message) return false;
+  return BLOCK_MESSAGE_PREFIXES.some((prefix) => message.startsWith(prefix));
+}
+
+// Heuristic: detect when the model itself declined to answer (a "refusal"),
+// e.g. "I can't help with that." This targets explicit safety-style declines,
+// not capability limitations like "I don't have access to ...". Used to drop
+// such turns from history so the offending prompt + refusal are not replayed
+// as context on later turns.
+const REFUSAL_PATTERNS: RegExp[] = [
+  /\bi can(?:'|no)t (?:help|assist|provide|comply|continue|engage|support|fulfill|do that)/i,
+  /\bi (?:won'?t|will not) (?:help|assist|provide|comply|continue|engage|support|fulfill|do that)/i,
+  /\bi(?:'m| am) (?:not able|unable) to (?:help|assist|provide|comply|continue|engage|support|fulfill)/i
+];
+
+export function isRefusalMessage(text: string | undefined): boolean {
+  if (!text) return false;
+  return REFUSAL_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 // Best-effort: pull a human-readable DLP profile/policy name out of any
 // cf-aig-dlp JSON that happens to be embedded in the error text.
 function extractDlpDetail(text: string): string | null {

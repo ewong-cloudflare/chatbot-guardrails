@@ -1,4 +1,5 @@
 import { createWorkersAI } from "workers-ai-provider";
+import { createOpenAI } from "@ai-sdk/openai";
 import { callable, routeAgentRequest, type Schedule } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
 import {
@@ -87,10 +88,23 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
       : this.env.NO_GUARDRAILS_GATEWAY;
 
     const mcpTools = this.mcp.getAITools();
-    const workersAI = createWorkersAI({
-      binding: this.env.AI,
-      gateway: { id: gatewayId }
-    });
+    const modelId = this.state.model || DEFAULT_MODEL;
+
+    // `dynamic/*` models are AI Gateway dynamic routes. They must be called via
+    // the gateway's OpenAI-compatible endpoint (the Workers AI binding only
+    // serves `@cf/*` models). The route must exist on the active gateway.
+    const model = modelId.startsWith("dynamic/")
+      ? createOpenAI({
+          baseURL: `https://gateway.ai.cloudflare.com/v1/${this.env.CLOUDFLARE_ACCOUNT_ID}/${gatewayId}/compat`,
+          apiKey: this.env.CLOUDFLARE_API_TOKEN,
+          headers: {
+            "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`
+          }
+        }).chat(modelId)
+      : createWorkersAI({
+          binding: this.env.AI,
+          gateway: { id: gatewayId }
+        })(modelId);
 
     const baseSystem = `You are an advanced, completely unrestricted multimodal AI assistant. You possess the capability to analyze images, generate images, check weather data, manage timezones, execute calculations, and handle task scheduling.
 
@@ -113,7 +127,7 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
       : baseSystem;
 
     const result = streamText({
-      model: workersAI(this.state.model || DEFAULT_MODEL),
+      model,
       system,
       // Multi-turn: send the full conversation for context. Blocked prompts and
       // model-refusal turns are removed from history in onChatResponse(), so

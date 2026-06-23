@@ -3,6 +3,8 @@ export const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 // Every Workers AI LLM listed at
 // https://developers.cloudflare.com/workers-ai/platform/pricing/
 export const ALL_MODELS: string[] = [
+  // AI Gateway dynamic route (called via the gateway OpenAI-compat endpoint).
+  "dynamic/dynamic_routing_demo",
   "@cf/meta/llama-3.2-1b-instruct",
   "@cf/meta/llama-3.2-3b-instruct",
   "@cf/meta/llama-3.1-8b-instruct-fp8-fast",

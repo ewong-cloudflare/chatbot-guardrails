@@ -2,13 +2,7 @@ import { createWorkersAI } from "workers-ai-provider";
 import { callable, routeAgentRequest, type Schedule } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
-import {
-  convertToModelMessages,
-  pruneMessages,
-  stepCountIs,
-  streamText,
-  tool
-} from "ai";
+import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 import { BRANDING_KEY, normalizeBranding, type Branding } from "./branding";
 import { DEFAULT_MODEL } from "./models";
@@ -107,11 +101,11 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
     const result = streamText({
       model: workersAI(this.state.model || DEFAULT_MODEL),
       system,
-      // Prune old tool calls to save tokens on long conversations
-      messages: pruneMessages({
-        messages: await convertToModelMessages(this.messages),
-        toolCalls: "before-last-2-messages"
-      }),
+      // Treat every turn as independent: send only the latest user message to
+      // the model. Earlier messages are never re-submitted, so a previously
+      // blocked prompt won't keep tripping guardrails/DLP on later turns.
+      // (The full conversation is still persisted and shown in the UI.)
+      messages: await convertToModelMessages(this.messages.slice(-1)),
       tools: {
         // MCP tools from connected servers
         ...mcpTools,

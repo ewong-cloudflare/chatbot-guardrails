@@ -49,4 +49,39 @@ describe("describeGatewayError", () => {
       "Something went wrong while generating a response. Please try again."
     );
   });
+
+  it("reads the code from a structured AiGatewayError object", () => {
+    const err = {
+      message: "Request content blocked due to DLP policy violations",
+      internalCode: 2030,
+      httpCode: 424,
+      name: "AiGatewayError",
+      error: [
+        {
+          code: 2030,
+          message: "Request content blocked due to DLP policy violations"
+        }
+      ],
+      success: false
+    };
+    expect(describeGatewayError(err)).toBe(
+      "The response was blocked by a Data Loss Prevention (DLP) policy."
+    );
+  });
+
+  it("reads the code from a nested error array when message has no number", () => {
+    const err = new Error("Prompt blocked due to security configurations");
+    // attach a structured payload like the AI SDK / provider does
+    (err as unknown as { error: unknown }).error = [{ code: 2016 }];
+    expect(describeGatewayError(err)).toBe(
+      "Your prompt was blocked by a content guardrail."
+    );
+  });
+
+  it("never leaks raw JSON for an unmapped AiGatewayError", () => {
+    const err = { name: "AiGatewayError", internalCode: 9999, foo: "bar" };
+    expect(describeGatewayError(err)).toBe(
+      "Something went wrong while generating a response. Please try again."
+    );
+  });
 });

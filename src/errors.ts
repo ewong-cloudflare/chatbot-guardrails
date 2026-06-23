@@ -17,16 +17,36 @@ function extractDlpDetail(text: string): string | null {
   return policy ? policy[1] : null;
 }
 
+// Build a searchable string from any error shape. AI Gateway errors surface
+// the code in different places depending on how the provider/AI SDK wraps
+// them: sometimes in `.message`, sometimes only in `internalCode` or a nested
+// `error: [{ code }]` array. Serializing the whole thing lets us find it
+// regardless, while keeping the human message available for DLP detail.
+function collectErrorText(error: unknown): string {
+  if (error == null) return "";
+  if (typeof error === "string") return error;
+  if (typeof error === "object") {
+    const parts: string[] = [];
+    const e = error as Record<string, unknown>;
+    if (typeof e.message === "string") parts.push(e.message);
+    try {
+      parts.push(JSON.stringify(error));
+    } catch {
+      // circular or non-serializable — fall back to the message only
+    }
+    if (e.cause != null && e.cause !== error) {
+      parts.push(collectErrorText(e.cause));
+    }
+    return parts.join(" ");
+  }
+  return String(error);
+}
+
 export function describeGatewayError(error: unknown): string {
-  const text =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "";
+  const text = collectErrorText(error);
 
   for (const code of ["2016", "2017", "2029", "2030"]) {
-    if (text.includes(code)) {
+    if (new RegExp(`\\b${code}\\b`).test(text)) {
       const base = CODE_MESSAGES[code];
       if (code === "2029" || code === "2030") {
         const detail = extractDlpDetail(text);

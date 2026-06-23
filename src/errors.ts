@@ -15,23 +15,6 @@ const CODE_MESSAGES: Record<string, string> = {
   "2030": DLP_RESPONSE
 };
 
-// Prefixes of every block message. DLP messages may carry a ": <profile>."
-// suffix, so we match on the stem (trailing period removed).
-const BLOCK_MESSAGE_PREFIXES = [
-  GUARDRAIL_PROMPT,
-  GUARDRAIL_RESPONSE,
-  DLP_REQUEST.replace(/\.$/, ""),
-  DLP_RESPONSE.replace(/\.$/, "")
-];
-
-// True when a (already-mapped) error message represents an AI Gateway block,
-// as opposed to a generic failure. Used to decide whether to drop the
-// offending turn from history so it isn't replayed on later messages.
-export function isGatewayBlockMessage(message: string | undefined): boolean {
-  if (!message) return false;
-  return BLOCK_MESSAGE_PREFIXES.some((prefix) => message.startsWith(prefix));
-}
-
 // Best-effort: pull a human-readable DLP profile/policy name out of any
 // cf-aig-dlp JSON that happens to be embedded in the error text.
 function extractDlpDetail(text: string): string | null {

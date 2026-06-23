@@ -778,7 +778,10 @@ function Chat() {
               <Button
                 variant="secondary"
                 icon={<TrashIcon size={16} />}
-                onClick={clearHistory}
+                onClick={() => {
+                  clearHistory();
+                  setChatError(null);
+                }}
               >
                 Clear
               </Button>

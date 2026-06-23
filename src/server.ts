@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 import { BRANDING_KEY, normalizeBranding, type Branding } from "./branding";
 import { DEFAULT_MODEL } from "./models";
+import { describeGatewayError } from "./errors";
 
 type ChatState = {
   guardrailsEnabled: boolean;
@@ -277,7 +278,9 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
         }
       }
     });
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      onError: describeGatewayError
+    });
   }
 
   async executeTask(description: string, _task: Schedule<string>) {

@@ -46,8 +46,9 @@ Two features for the guardrails chatbot:
 
 **Config**
 
-- `wrangler.jsonc` vars: `ACCESS_TEAM_DOMAIN` (e.g.
-  `acmecorp.cloudflareaccess.com`), `ACCESS_AUD` (Access application AUD tag).
+- `wrangler.jsonc` vars:
+  - `ACCESS_TEAM_DOMAIN`: `realacmecorp.cloudflareaccess.com`
+  - `ACCESS_AUD`: `b14960624a389d5c55b745220c224a717fd0a3c1055af637965c310a87c13046`
 - Regenerate `env.d.ts` via `npm run types`.
 - New dependency: `jose`.
 

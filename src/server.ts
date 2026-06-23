@@ -129,13 +129,16 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
     const result = streamText({
       model,
       system,
-      // Multi-turn: send the full conversation for context. Blocked prompts and
-      // model-refusal turns are removed from history in onChatResponse(), so
-      // they are never replayed as context on later messages.
-      messages: pruneMessages({
-        messages: await convertToModelMessages(this.messages),
-        toolCalls: "before-last-2-messages"
-      }),
+      // When guardrails are ON, evaluate each prompt independently: send only
+      // the latest user message so previously-allowed (but now-flagged) history
+      // can't permanently block the conversation. When OFF, keep full multi-turn
+      // context. Blocked/refused turns are also pruned in onChatResponse().
+      messages: this.state.guardrailsEnabled
+        ? await convertToModelMessages(this.messages.slice(-1))
+        : pruneMessages({
+            messages: await convertToModelMessages(this.messages),
+            toolCalls: "before-last-2-messages"
+          }),
       tools: {
         // MCP tools from connected servers
         ...mcpTools,

@@ -76,6 +76,8 @@ Guardrails (prompt/response scanning) are configured at the **gateway level** in
 | `GUARDRAILS_GATEWAY`    | var                | Gateway ID used when guardrails are on        |
 | `NO_GUARDRAILS_GATEWAY` | var                | Gateway ID used when guardrails are off       |
 | `R2_PUBLIC_URL`         | var                | Public URL for the R2 bucket                  |
+| `ACCESS_TEAM_DOMAIN`    | var                | Cloudflare Access team domain (JWT verify)    |
+| `ACCESS_AUD`            | var                | Access application AUD tag (JWT verify)       |
 | `CLOUDFLARE_ACCOUNT_ID` | secret             | Account that owns the gateways/Workers AI     |
 | `CLOUDFLARE_API_TOKEN`  | secret             | Token for the remote AI binding / AI Gateway  |
 
@@ -120,6 +122,29 @@ The sliders icon in the header toggles a collapsible right-side **Parameters** p
 Open `/admin` to update the logo, primary color, accent color, and app name. Settings are stored globally in KV (`GET`/`POST /api/branding`) and applied app-wide via CSS variables on load.
 
 > **Access control:** `/admin` and `/api/branding` have no app-level password — protect them with a [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) policy (e.g. a self-hosted application covering `/admin*` and `/api/branding`).
+
+## Per-user sessions
+
+Each Cloudflare Access user gets an isolated chat (own Durable Object with its
+own history, model, guardrails toggle, and system message). The Worker verifies
+the Access JWT (`Cf-Access-Jwt-Assertion` header or `CF_Authorization` cookie)
+against your team's JWKS and routes to a Durable Object keyed by the user's
+email. Requests without a valid token (e.g. local dev) fall back to a
+per-browser anonymous id stored in `localStorage`.
+
+Configure these vars in `wrangler.jsonc`:
+
+| Var                  | Example                             |
+| -------------------- | ----------------------------------- |
+| `ACCESS_TEAM_DOMAIN` | `realacmecorp.cloudflareaccess.com` |
+| `ACCESS_AUD`         | your Access application AUD tag     |
+
+## Blocked-request errors
+
+When AI Gateway blocks a message, the chat shows an inline error explaining the
+cause, mapped from the gateway error codes: guardrail prompt (2016), guardrail
+response (2017), DLP request (2029), DLP response (2030). When the `cf-aig-dlp`
+detail is available, the matched DLP profile name is appended.
 
 ## Key files
 

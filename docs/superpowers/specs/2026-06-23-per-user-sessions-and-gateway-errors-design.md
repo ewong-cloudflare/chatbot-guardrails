@@ -96,12 +96,12 @@ Browser ──WS/HTTP (Cf-Access-Jwt-Assertion or CF_Authorization cookie)──
 
 ### AI Gateway error contract (from docs)
 
-| Code | Meaning                         |
-| ---- | ------------------------------- |
-| 2016 | Prompt blocked by Guardrails    |
-| 2017 | Response blocked by Guardrails  |
-| 2029 | Request blocked by DLP policy   |
-| 2030 | Response blocked by DLP policy  |
+| Code | Meaning                        |
+| ---- | ------------------------------ |
+| 2016 | Prompt blocked by Guardrails   |
+| 2017 | Response blocked by Guardrails |
+| 2029 | Request blocked by DLP policy  |
+| 2030 | Response blocked by DLP policy |
 
 - DLP also returns a `cf-aig-dlp` response header with `findings`
   (`policy_ids`, `profile`, `check`, `action`). Surfacing it is **best-effort**:

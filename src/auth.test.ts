@@ -7,9 +7,9 @@ function req(headers: Record<string, string>): Request {
 
 describe("extractAccessToken", () => {
   it("reads the Cf-Access-Jwt-Assertion header", () => {
-    expect(extractAccessToken(req({ "Cf-Access-Jwt-Assertion": "tok123" }))).toBe(
-      "tok123"
-    );
+    expect(
+      extractAccessToken(req({ "Cf-Access-Jwt-Assertion": "tok123" }))
+    ).toBe("tok123");
   });
 
   it("falls back to the CF_Authorization cookie", () => {

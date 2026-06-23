@@ -28,20 +28,24 @@
 ## Task 1: Test infrastructure and dependencies
 
 **Files:**
+
 - Modify: `package.json`
 - Create: `vitest.config.ts`
 
 - [ ] **Step 1: Install dependencies**
 
 Run:
+
 ```bash
 npm install jose && npm install -D vitest
 ```
+
 Expected: both packages added to `package.json`; no errors.
 
 - [ ] **Step 2: Add the test script to `package.json`**
 
 In the `"scripts"` block, add a `test` line after `"build"`:
+
 ```json
     "build": "vite build",
     "test": "vitest run",
@@ -77,12 +81,14 @@ git commit -m "chore: add vitest and jose dependencies"
 ## Task 2: Gateway error mapping (`src/errors.ts`)
 
 **Files:**
+
 - Create: `src/errors.ts`
 - Test: `src/errors.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 `src/errors.test.ts`:
+
 ```ts
 import { describe, it, expect } from "vitest";
 import { describeGatewayError } from "./errors";
@@ -204,11 +210,13 @@ git commit -m "feat: map AI Gateway guardrail/DLP error codes to messages"
 ## Task 3: Surface mapped errors from the chat stream
 
 **Files:**
+
 - Modify: `src/server.ts` (the `return result.toUIMessageStreamResponse();` line, currently around line 280)
 
 - [ ] **Step 1: Add the import**
 
 At the top of `src/server.ts`, after the existing `import { DEFAULT_MODEL } from "./models";` line, add:
+
 ```ts
 import { describeGatewayError } from "./errors";
 ```
@@ -216,14 +224,17 @@ import { describeGatewayError } from "./errors";
 - [ ] **Step 2: Pass `onError` to the stream response**
 
 Replace:
+
 ```ts
-    return result.toUIMessageStreamResponse();
+return result.toUIMessageStreamResponse();
 ```
+
 with:
+
 ```ts
-    return result.toUIMessageStreamResponse({
-      onError: describeGatewayError
-    });
+return result.toUIMessageStreamResponse({
+  onError: describeGatewayError
+});
 ```
 
 - [ ] **Step 3: Verify types compile**
@@ -243,12 +254,14 @@ git commit -m "feat: send mapped guardrail/DLP messages to the chat client"
 ## Task 4: Token extraction & session-name helpers (`src/auth.ts` — pure parts)
 
 **Files:**
+
 - Create: `src/auth.ts`
 - Test: `src/auth.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 `src/auth.test.ts`:
+
 ```ts
 import { describe, it, expect } from "vitest";
 import { extractAccessToken, toSessionName } from "./auth";
@@ -259,9 +272,9 @@ function req(headers: Record<string, string>): Request {
 
 describe("extractAccessToken", () => {
   it("reads the Cf-Access-Jwt-Assertion header", () => {
-    expect(extractAccessToken(req({ "Cf-Access-Jwt-Assertion": "tok123" }))).toBe(
-      "tok123"
-    );
+    expect(
+      extractAccessToken(req({ "Cf-Access-Jwt-Assertion": "tok123" }))
+    ).toBe("tok123");
   });
 
   it("falls back to the CF_Authorization cookie", () => {
@@ -381,12 +394,14 @@ git commit -m "feat: add Access token extraction and session-name helpers"
 ## Task 5: Add Access config vars and regenerate types
 
 **Files:**
+
 - Modify: `wrangler.jsonc` (the `vars` block, around lines 49-53)
 - Modify: `env.d.ts` (regenerated)
 
 - [ ] **Step 1: Add the vars**
 
 In `wrangler.jsonc`, change the `vars` block to:
+
 ```jsonc
   "vars": {
     "R2_PUBLIC_URL": "https://chatbot-images.acmecorp.work",
@@ -419,11 +434,13 @@ git commit -m "feat: add Cloudflare Access team domain and AUD config"
 ## Task 6: Per-user session routing in the Worker
 
 **Files:**
+
 - Modify: `src/server.ts` (the `export default { fetch }` handler, around lines 318-329)
 
 - [ ] **Step 1: Add the import**
 
 At the top of `src/server.ts`, after `import { describeGatewayError } from "./errors";`, add:
+
 ```ts
 import { getSessionName } from "./auth";
 ```
@@ -431,6 +448,7 @@ import { getSessionName } from "./auth";
 - [ ] **Step 2: Add the routing helper above `export default`**
 
 Insert this function just before `export default {`:
+
 ```ts
 // For authenticated users, force the Durable Object instance name to the
 // verified identity so the client cannot choose another user's session.
@@ -456,6 +474,7 @@ async function withSessionRouting(
 - [ ] **Step 3: Use it in `fetch`**
 
 Replace the body of `fetch` with:
+
 ```ts
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
@@ -489,15 +508,19 @@ git commit -m "feat: route chat to a per-identity Durable Object via Access JWT"
 ## Task 7: Anonymous session id + connect with a name (client)
 
 **Files:**
+
 - Modify: `src/app.tsx` (imports near line 1; `useAgent` call around lines 256-257)
 
 - [ ] **Step 1: Ensure `useMemo` is imported**
 
 Change the first import line:
+
 ```ts
 import { Suspense, useCallback, useState, useEffect, useRef } from "react";
 ```
+
 to:
+
 ```ts
 import {
   Suspense,
@@ -512,6 +535,7 @@ import {
 - [ ] **Step 2: Add an anon-id helper above the `Chat` component**
 
 Insert just before `function Chat() {`:
+
 ```ts
 function getAnonId(): string {
   const KEY = "cgd_anon_id";
@@ -531,15 +555,20 @@ function getAnonId(): string {
 - [ ] **Step 3: Compute the id and pass it as the agent name**
 
 Inside `Chat()`, add near the other hooks (e.g. just after `const branding = useBranding();`):
+
 ```ts
-  const anonId = useMemo(() => getAnonId(), []);
+const anonId = useMemo(() => getAnonId(), []);
 ```
+
 Then change:
+
 ```ts
   const agent = useAgent<ChatAgent>({
     agent: "ChatAgent",
 ```
+
 to:
+
 ```ts
   const agent = useAgent<ChatAgent>({
     agent: "ChatAgent",
@@ -563,72 +592,77 @@ git commit -m "feat: connect chat with a per-browser anonymous session id"
 ## Task 8: Inline error bubble (client)
 
 **Files:**
+
 - Modify: `src/app.tsx` (the `onMessage` handler ~280-307; `send` ~492-497; message render footer ~928-930)
 
 - [ ] **Step 1: Add error state**
 
 Inside `Chat()`, near the other `useState` calls (e.g. after `const [input, setInput] = useState("");`), add:
+
 ```ts
-  const [chatError, setChatError] = useState<string | null>(null);
+const [chatError, setChatError] = useState<string | null>(null);
 ```
 
 - [ ] **Step 2: Set the error inline instead of as a toast**
 
 In the `onMessage` callback, replace the block:
+
 ```ts
-          if (
-            data.type === "cf_agent_use_chat_response" &&
-            data.error === true
-          ) {
-            toasts.add({
-              title: "Chat error",
-              description: data.body || "An error occurred.",
-              variant: "error",
-              timeout: 0
-            });
-          }
+if (data.type === "cf_agent_use_chat_response" && data.error === true) {
+  toasts.add({
+    title: "Chat error",
+    description: data.body || "An error occurred.",
+    variant: "error",
+    timeout: 0
+  });
+}
 ```
+
 with:
+
 ```ts
-          if (
-            data.type === "cf_agent_use_chat_response" &&
-            data.error === true
-          ) {
-            setChatError(
-              typeof data.body === "string" && data.body.length > 0
-                ? data.body
-                : "Something went wrong while generating a response."
-            );
-          }
+if (data.type === "cf_agent_use_chat_response" && data.error === true) {
+  setChatError(
+    typeof data.body === "string" && data.body.length > 0
+      ? data.body
+      : "Something went wrong while generating a response."
+  );
+}
 ```
 
 - [ ] **Step 3: Clear the error when sending a new message**
 
 In the `send` callback, immediately before `sendMessage({ role: "user", parts });`, add:
+
 ```ts
-    setChatError(null);
+setChatError(null);
 ```
 
 - [ ] **Step 4: Render the inline error bubble**
 
 In the messages render area, between the closing of the messages map (`})}` at ~line 928) and `<div ref={messagesEndRef} />` (~line 930), insert:
+
 ```tsx
-            {chatError && (
-              <div className="flex justify-start" role="alert">
-                <div className="flex items-start gap-2 max-w-[80%] rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-                  <WarningIcon size={16} className="mt-0.5 shrink-0" />
-                  <span>{chatError}</span>
-                </div>
-              </div>
-            )}
+{
+  chatError && (
+    <div className="flex justify-start" role="alert">
+      <div className="flex items-start gap-2 max-w-[80%] rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+        <WarningIcon size={16} className="mt-0.5 shrink-0" />
+        <span>{chatError}</span>
+      </div>
+    </div>
+  );
+}
 ```
 
 - [ ] **Step 5: Import the warning icon**
 
 In the `@phosphor-icons/react` import group in `src/app.tsx`, add `WarningIcon` to the list of imported icons (alongside the existing icons such as `ShieldCheckIcon`). If icons are imported individually, add:
+
 ```ts
 import { WarningIcon } from "@phosphor-icons/react";
 ```
+
 Otherwise add `WarningIcon,` to the existing destructured import from `@phosphor-icons/react`.
 
 - [ ] **Step 6: Verify types compile and lint passes**
@@ -672,11 +706,13 @@ After deploying behind Cloudflare Access, sign in as two different users. Expect
 ## Task 10: Documentation
 
 **Files:**
+
 - Modify: `README.md`
 
 - [ ] **Step 1: Document the feature**
 
 Add a new section after the "Access control" note (the Cloudflare Access blockquote in the styling/admin area), titled `## Per-user sessions`, with this content:
+
 ```markdown
 ## Per-user sessions
 
@@ -689,10 +725,10 @@ per-browser anonymous id stored in `localStorage`.
 
 Configure these vars in `wrangler.jsonc`:
 
-| Var                  | Example                                  |
-| -------------------- | ---------------------------------------- |
-| `ACCESS_TEAM_DOMAIN` | `realacmecorp.cloudflareaccess.com`      |
-| `ACCESS_AUD`         | your Access application AUD tag          |
+| Var                  | Example                             |
+| -------------------- | ----------------------------------- |
+| `ACCESS_TEAM_DOMAIN` | `realacmecorp.cloudflareaccess.com` |
+| `ACCESS_AUD`         | your Access application AUD tag     |
 
 ## Blocked-request errors
 
@@ -705,14 +741,16 @@ detail is available, the matched DLP profile name is appended.
 - [ ] **Step 2: Update the bindings table**
 
 In the "Environment & bindings" table in `README.md`, add these two rows after the `R2_PUBLIC_URL` row:
+
 ```markdown
-| `ACCESS_TEAM_DOMAIN`    | var                | Cloudflare Access team domain (JWT verify)    |
-| `ACCESS_AUD`            | var                | Access application AUD tag (JWT verify)       |
+| `ACCESS_TEAM_DOMAIN` | var | Cloudflare Access team domain (JWT verify) |
+| `ACCESS_AUD` | var | Access application AUD tag (JWT verify) |
 ```
 
 - [ ] **Step 3: Format and commit**
 
 Run: `npx oxfmt --write README.md`
+
 ```bash
 git add README.md
 git commit -m "docs: document per-user sessions and block-error messages"

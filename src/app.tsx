@@ -1,4 +1,11 @@
-import { Suspense, useCallback, useState, useEffect, useRef } from "react";
+import {
+  Suspense,
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  useMemo
+} from "react";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
@@ -39,7 +46,8 @@ import {
   ImageIcon,
   ShieldCheckIcon,
   PaletteIcon,
-  SlidersHorizontalIcon
+  SlidersHorizontalIcon,
+  WarningIcon
 } from "@phosphor-icons/react";
 import { useBranding } from "./useBranding";
 import { ALL_MODELS, DEFAULT_MODEL } from "./models";
@@ -225,10 +233,26 @@ function ToolPartView({
 
 // ── Main chat ─────────────────────────────────────────────────────────
 
+function getAnonId(): string {
+  const KEY = "cgd_anon_id";
+  try {
+    let id = localStorage.getItem(KEY);
+    if (!id) {
+      id = `anon_${crypto.randomUUID()}`;
+      localStorage.setItem(KEY, id);
+    }
+    return id;
+  } catch {
+    return `anon_${crypto.randomUUID()}`;
+  }
+}
+
 function Chat() {
   const branding = useBranding();
+  const anonId = useMemo(() => getAnonId(), []);
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
+  const [chatError, setChatError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
   const [guardrails, setGuardrails] = useState(true);
   const [model, setModel] = useState(DEFAULT_MODEL);
@@ -255,6 +279,7 @@ function Chat() {
 
   const agent = useAgent<ChatAgent>({
     agent: "ChatAgent",
+    name: anonId,
     onOpen: useCallback(() => setConnected(true), []),
     onClose: useCallback(() => setConnected(false), []),
     onStateUpdate: useCallback((state: ChatAgent) => {
@@ -292,12 +317,11 @@ function Chat() {
             data.type === "cf_agent_use_chat_response" &&
             data.error === true
           ) {
-            toasts.add({
-              title: "Chat error",
-              description: data.body || "An error occurred.",
-              variant: "error",
-              timeout: 0
-            });
+            setChatError(
+              typeof data.body === "string" && data.body.length > 0
+                ? data.body
+                : "Something went wrong while generating a response."
+            );
           }
         } catch {
           // Not JSON or not our event
@@ -492,6 +516,7 @@ function Chat() {
     for (const att of attachments) URL.revokeObjectURL(att.preview);
     setAttachments([]);
 
+    setChatError(null);
     sendMessage({ role: "user", parts });
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   }, [input, attachments, isStreaming, sendMessage]);
@@ -926,6 +951,15 @@ function Chat() {
                 </div>
               );
             })}
+
+            {chatError && (
+              <div className="flex justify-start" role="alert">
+                <div className="flex items-start gap-2 max-w-[80%] rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                  <WarningIcon size={16} className="mt-0.5 shrink-0" />
+                  <span>{chatError}</span>
+                </div>
+              </div>
+            )}
 
             <div ref={messagesEndRef} />
           </div>

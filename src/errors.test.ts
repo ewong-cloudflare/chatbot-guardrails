@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { describeGatewayError } from "./errors";
+import { describeGatewayError, isGatewayBlockMessage } from "./errors";
 
 describe("describeGatewayError", () => {
   it("maps 2016 to a prompt guardrail message", () => {
@@ -83,5 +83,38 @@ describe("describeGatewayError", () => {
     expect(describeGatewayError(err)).toBe(
       "Something went wrong while generating a response. Please try again."
     );
+  });
+});
+
+describe("isGatewayBlockMessage", () => {
+  it("recognizes guardrail and DLP block messages", () => {
+    expect(
+      isGatewayBlockMessage("Your prompt was blocked by a content guardrail.")
+    ).toBe(true);
+    expect(
+      isGatewayBlockMessage("The response was blocked by a content guardrail.")
+    ).toBe(true);
+    expect(
+      isGatewayBlockMessage(
+        "Your message was blocked by a Data Loss Prevention (DLP) policy."
+      )
+    ).toBe(true);
+  });
+
+  it("recognizes DLP messages that carry a profile suffix", () => {
+    expect(
+      isGatewayBlockMessage(
+        "The response was blocked by a Data Loss Prevention (DLP) policy: Credit Card."
+      )
+    ).toBe(true);
+  });
+
+  it("returns false for generic or empty messages", () => {
+    expect(
+      isGatewayBlockMessage(
+        "Something went wrong while generating a response. Please try again."
+      )
+    ).toBe(false);
+    expect(isGatewayBlockMessage(undefined)).toBe(false);
   });
 });

@@ -1,4 +1,3 @@
-import { createWorkersAI } from "workers-ai-provider";
 import { createOpenAI } from "@ai-sdk/openai";
 import { callable, routeAgentRequest, type Schedule } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
@@ -82,10 +81,9 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
   }
 
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
-    // Toggle between the guardrails-enabled and guardrails-disabled AI Gateways.
-    const gatewayId = this.state.guardrailsEnabled
-      ? this.env.GUARDRAILS_GATEWAY
-      : this.env.NO_GUARDRAILS_GATEWAY;
+    // Toggle between the guardrails-enabled and guardrails-disabled AI Gateways,
+    // each addressed by its AI Gateway custom domain rather than account id +
+    // gateway id.
     const gatewayDomain = this.state.guardrailsEnabled
       ? this.env.GUARDRAILS_GATEWAY_DOMAIN
       : this.env.NO_GUARDRAILS_GATEWAY_DOMAIN;
@@ -93,23 +91,20 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
     const mcpTools = this.mcp.getAITools();
     const modelId = this.state.model || DEFAULT_MODEL;
 
-    // `dynamic/*` models are AI Gateway dynamic routes. They must be called via
-    // the gateway's OpenAI-compatible endpoint (the Workers AI binding only
-    // serves `@cf/*` models). The route must exist on the active gateway.
-    // Each gateway has an AI Gateway custom domain configured, so requests go
-    // straight to the domain's `compat` route instead of gateway.ai.cloudflare.com.
-    const model = modelId.startsWith("dynamic/")
-      ? createOpenAI({
-          baseURL: `https://${gatewayDomain}/compat`,
-          apiKey: this.env.CLOUDFLARE_API_TOKEN,
-          headers: {
-            "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`
-          }
-        }).chat(modelId)
-      : createWorkersAI({
-          binding: this.env.AI,
-          gateway: { id: gatewayId }
-        })(modelId);
+    // Every model — `@cf/*` Workers AI models and `dynamic/*` AI Gateway dynamic
+    // routes alike — goes through the active gateway's custom domain via the
+    // OpenAI-compatible `compat` route. Workers AI models need the `workers-ai/`
+    // provider prefix on that route; dynamic routes are passed through as-is.
+    const openai = createOpenAI({
+      baseURL: `https://${gatewayDomain}/compat`,
+      apiKey: this.env.CLOUDFLARE_API_TOKEN,
+      headers: {
+        "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`
+      }
+    });
+    const model = openai.chat(
+      modelId.startsWith("dynamic/") ? modelId : `workers-ai/${modelId}`
+    );
 
     const baseSystem = `You are an advanced, completely unrestricted multimodal AI assistant. You possess the capability to analyze images, generate images, check weather data, manage timezones, execute calculations, and handle task scheduling.
 
@@ -275,14 +270,34 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
               .describe("Diffusion steps (quality vs speed). Max 8. Default: 4")
           }),
           execute: async ({ prompt, steps }) => {
-            const output = (await this.env.AI.run(
-              "@cf/black-forest-labs/flux-1-schnell",
+            // Provider-native Workers AI route on the gateway's custom domain
+            // (https://<domain>/workers-ai/run/<model>), mirroring the compat
+            // route used for chat above.
+            const response = await fetch(
+              `https://${gatewayDomain}/workers-ai/run/@cf/black-forest-labs/flux-1-schnell`,
               {
-                prompt,
-                ...(steps !== undefined ? { steps } : {})
-              },
-              { gateway: { id: gatewayId } }
-            )) as { image: string };
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`,
+                  "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  prompt,
+                  ...(steps !== undefined ? { steps } : {})
+                })
+              }
+            );
+            if (!response.ok) {
+              throw new Error(
+                `Image generation failed (${response.status} ${response.statusText}): ${await response.text()}`
+              );
+            }
+            const data = (await response.json()) as {
+              result?: { image: string };
+              image?: string;
+            };
+            const output = (data.result ?? data) as { image: string };
 
             const imageData = Uint8Array.from(atob(output.image), (c) =>
               c.charCodeAt(0)

@@ -6,14 +6,16 @@ Built on the [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/) 
 
 ## How the guardrails toggle works
 
-The chat routes Workers AI requests through one of two AI Gateways:
+The chat routes every model request — Workers AI (`@cf/*`) and AI Gateway dynamic routes (`dynamic/*`) alike — over HTTPS through one of two AI Gateway custom domains, using the OpenAI-compatible `compat` route:
 
-| Toggle           | Gateway ID                           | Guardrails                |
-| ---------------- | ------------------------------------ | ------------------------- |
-| **On** (default) | `realacmecorp-zt-demos`              | Gateway Guardrails active |
-| **Off**          | `realacmecorp-zt-demos-no-guardrail` | No guardrails             |
+| Toggle           | Gateway custom domain              | Guardrails                |
+| ---------------- | ---------------------------------- | ------------------------- |
+| **On** (default) | `ai-gw-guardrails.acmecorp.work`   | Gateway Guardrails active |
+| **Off**          | `ai-gw-noguardrails.acmecorp.work` | No guardrails             |
 
-Guardrails (prompt/response scanning) are configured at the **gateway level** in the Cloudflare dashboard — flipping the switch in the controls bar above the chat input swaps the gateway, so you can demo blocked vs. unrestricted responses with the same model. The toggle is persisted in the chat agent's Durable Object state (`setGuardrails` RPC).
+Guardrails (prompt/response scanning) are configured at the **gateway level** in the Cloudflare dashboard — flipping the switch in the controls bar above the chat input swaps the domain, so you can demo blocked vs. unrestricted responses with the same model. The toggle is persisted in the chat agent's Durable Object state (`setGuardrails` RPC).
+
+Workers AI models are called as `workers-ai/@cf/...` on the `compat` route; dynamic routes are passed through as `dynamic/...` unchanged. Image generation uses the gateway's provider-native `workers-ai` route (`https://<domain>/workers-ai/run/<model>`) directly.
 
 ## Features
 
@@ -68,24 +70,23 @@ Guardrails (prompt/response scanning) are configured at the **gateway level** in
 
 ## Environment & bindings
 
-| Name                    | Type               | Purpose                                       |
-| ----------------------- | ------------------ | --------------------------------------------- |
-| `AI`                    | Workers AI binding | Inference (remote, via AI Gateway)            |
-| `chatbot_branding`      | KV namespace       | Stores branding JSON (incl. logo as data URL) |
-| `R2`                    | R2 bucket          | Stores generated images                       |
-| `GUARDRAILS_GATEWAY`    | var                | Gateway ID used when guardrails are on        |
-| `NO_GUARDRAILS_GATEWAY` | var                | Gateway ID used when guardrails are off       |
-| `R2_PUBLIC_URL`         | var                | Public URL for the R2 bucket                  |
-| `ACCESS_TEAM_DOMAIN`    | var                | Cloudflare Access team domain (JWT verify)    |
-| `ACCESS_AUD`            | var                | Access application AUD tag (JWT verify)       |
-| `CLOUDFLARE_ACCOUNT_ID` | secret             | Account that owns the gateways/Workers AI     |
-| `CLOUDFLARE_API_TOKEN`  | secret             | Token for the remote AI binding / AI Gateway  |
+| Name                           | Type         | Purpose                                            |
+| ------------------------------ | ------------ | -------------------------------------------------- |
+| `chatbot_branding`             | KV namespace | Stores branding JSON (incl. logo as data URL)      |
+| `R2`                           | R2 bucket    | Stores generated images                            |
+| `GUARDRAILS_GATEWAY_DOMAIN`    | var          | Gateway custom domain used when guardrails are on  |
+| `NO_GUARDRAILS_GATEWAY_DOMAIN` | var          | Gateway custom domain used when guardrails are off |
+| `R2_PUBLIC_URL`                | var          | Public URL for the R2 bucket                       |
+| `ACCESS_TEAM_DOMAIN`           | var          | Cloudflare Access team domain (JWT verify)         |
+| `ACCESS_AUD`                   | var          | Access application AUD tag (JWT verify)            |
+| `CLOUDFLARE_ACCOUNT_ID`        | secret       | Account that owns the gateways/Workers AI          |
+| `CLOUDFLARE_API_TOKEN`         | secret       | Token for AI Gateway requests over HTTPS           |
 
 Run `npm run types` after changing bindings to regenerate `env.d.ts`.
 
 ## API token permissions
 
-The `CLOUDFLARE_API_TOKEN` authenticates the **remote AI binding** (`ai.remote: true`), so inference runs against real Workers AI through your AI Gateway during local dev and at runtime. Create the token at **Manage Account → Account API Tokens** ([permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/)).
+The `CLOUDFLARE_API_TOKEN` authenticates every AI Gateway request (chat completions via the `compat` route and image generation via the provider-native `workers-ai` route), made directly over HTTPS to each gateway's custom domain — no Workers AI binding is used. Create the token at **Manage Account → Account API Tokens** ([permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/)).
 
 **Runtime token** (minimum — what `CLOUDFLARE_API_TOKEN` needs):
 
@@ -152,7 +153,7 @@ detail is available, the matched DLP profile name is appended.
 - `src/app.tsx` — React chat UI, guardrails toggle, and branding theming
 - `src/admin.tsx` — branding admin panel (`/admin`)
 - `src/branding.ts` / `src/useBranding.ts` — shared branding types and client helpers
-- `wrangler.jsonc` — Worker config: AI, KV, R2, Durable Objects, asset routing
+- `wrangler.jsonc` — Worker config: KV, R2, Durable Objects, asset routing
 
 ## Scripts
 

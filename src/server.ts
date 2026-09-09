@@ -86,6 +86,9 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
     const gatewayId = this.state.guardrailsEnabled
       ? this.env.GUARDRAILS_GATEWAY
       : this.env.NO_GUARDRAILS_GATEWAY;
+    const gatewayDomain = this.state.guardrailsEnabled
+      ? this.env.GUARDRAILS_GATEWAY_DOMAIN
+      : this.env.NO_GUARDRAILS_GATEWAY_DOMAIN;
 
     const mcpTools = this.mcp.getAITools();
     const modelId = this.state.model || DEFAULT_MODEL;
@@ -93,9 +96,11 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
     // `dynamic/*` models are AI Gateway dynamic routes. They must be called via
     // the gateway's OpenAI-compatible endpoint (the Workers AI binding only
     // serves `@cf/*` models). The route must exist on the active gateway.
+    // Each gateway has an AI Gateway custom domain configured, so requests go
+    // straight to the domain's `compat` route instead of gateway.ai.cloudflare.com.
     const model = modelId.startsWith("dynamic/")
       ? createOpenAI({
-          baseURL: `https://gateway.ai.cloudflare.com/v1/${this.env.CLOUDFLARE_ACCOUNT_ID}/${gatewayId}/compat`,
+          baseURL: `https://${gatewayDomain}/compat`,
           apiKey: this.env.CLOUDFLARE_API_TOKEN,
           headers: {
             "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`

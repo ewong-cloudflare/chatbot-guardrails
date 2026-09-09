@@ -1,5 +1,12 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { callable, routeAgentRequest, type Schedule } from "agents";
+import {
+  callable,
+  getCurrentAgent,
+  routeAgentRequest,
+  type Connection,
+  type ConnectionContext,
+  type Schedule
+} from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
 import {
   AIChatAgent,
@@ -21,7 +28,7 @@ import {
   isGatewayBlockMessage,
   isRefusalMessage
 } from "./errors";
-import { getSessionName } from "./auth";
+import { extractAccessToken, getSessionName } from "./auth";
 
 type ChatState = {
   guardrailsEnabled: boolean;
@@ -36,6 +43,22 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
     model: DEFAULT_MODEL,
     systemPrompt: ""
   };
+
+  // The AI Gateway custom domains are behind Cloudflare Access. Chat messages
+  // arrive over the WebSocket connection, not fresh HTTP requests, so the
+  // user's Access JWT (only available on the original upgrade request, in
+  // `onConnect`) is cached per-connection here and forwarded on every
+  // gateway call made while handling that connection's messages.
+  private accessTokensByConnection = new Map<string, string>();
+
+  onConnect(connection: Connection, ctx: ConnectionContext) {
+    const token = extractAccessToken(ctx.request);
+    if (token) this.accessTokensByConnection.set(connection.id, token);
+  }
+
+  onClose(connection: Connection) {
+    this.accessTokensByConnection.delete(connection.id);
+  }
 
   onStart() {
     // Configure OAuth popup behavior for MCP servers that require authentication
@@ -80,6 +103,21 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
     this.setState({ ...this.state, systemPrompt });
   }
 
+  // Headers for every AI Gateway custom-domain request. The gateway domains
+  // sit behind Cloudflare Access, so the current connection's cached Access
+  // JWT (see `onConnect`) is forwarded as the request credential, alongside
+  // the AI Gateway authorization header.
+  private gatewayAuthHeaders(): Record<string, string> {
+    const { connection } = getCurrentAgent();
+    const accessToken = connection
+      ? this.accessTokensByConnection.get(connection.id)
+      : undefined;
+    return {
+      "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`,
+      ...(accessToken ? { "Cf-Access-Jwt-Assertion": accessToken } : {})
+    };
+  }
+
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     // Toggle between the guardrails-enabled and guardrails-disabled AI Gateways,
     // each addressed by its AI Gateway custom domain rather than account id +
@@ -98,9 +136,7 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
     const openai = createOpenAI({
       baseURL: `https://${gatewayDomain}/compat`,
       apiKey: this.env.CLOUDFLARE_API_TOKEN,
-      headers: {
-        "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`
-      }
+      headers: this.gatewayAuthHeaders()
     });
     const model = openai.chat(
       modelId.startsWith("dynamic/") ? modelId : `workers-ai/${modelId}`
@@ -279,7 +315,7 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
                 method: "POST",
                 headers: {
                   Authorization: `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`,
-                  "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`,
+                  ...this.gatewayAuthHeaders(),
                   "Content-Type": "application/json"
                 },
                 body: JSON.stringify({

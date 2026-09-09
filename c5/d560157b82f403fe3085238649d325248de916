@@ -1,0 +1,21 @@
+README.md
+  s_fb16748fb09fb9::t_021f6a5397e2de 9,11-14,16-18,73-83,89,156
+env.d.ts
+  s_fb16748fb09fb9::t_5147032a078b46 2,27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c5d560157b82f403fe3085238649d325248de916",
+  "prompts": {},
+  "sessions": {
+    "s_fb16748fb09fb9": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "copy-innocent",
+        "model": "unknown"
+      },
+      "human_author": "ewong <ewong@cloudflare.com>"
+    }
+  }
+}

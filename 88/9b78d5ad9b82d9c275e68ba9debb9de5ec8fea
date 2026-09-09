@@ -1,0 +1,19 @@
+env.d.ts
+  s_fb16748fb09fb9::t_27a4894014a348 2,10-11,30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "889b78d5ad9b82d9c275e68ba9debb9de5ec8fea",
+  "prompts": {},
+  "sessions": {
+    "s_fb16748fb09fb9": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "copy-innocent",
+        "model": "unknown"
+      },
+      "human_author": "ewong <ewong@cloudflare.com>"
+    }
+  }
+}

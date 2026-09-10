@@ -166,9 +166,16 @@ Two details that are easy to get wrong:
 - **Where the JWT comes from:** chat messages travel over a WebSocket
   connection, not fresh HTTP requests, so the JWT is only available on the
   original upgrade request. `ChatAgent.onConnect` extracts it (via
-  `extractAccessToken` in `src/auth.ts`) and caches it per-connection;
-  `onClose` evicts it. `gatewayAuthHeaders()` looks up the cached token for
-  the current connection (via `getCurrentAgent()` from the `agents` SDK) on
+  `extractAccessToken` in `src/auth.ts`) and stores it with
+  `connection.setState({ accessToken })`, **not** a plain instance field —
+  this Durable Object hibernates when idle (`Agent.options.hibernate`
+  defaults to `true`), which evicts everything in memory except state
+  persisted on the connection's own attachment. `onConnect` doesn't re-run
+  on wake, so anything cached outside `connection.state` is silently lost
+  after the first hibernation cycle, and every request from then on is
+  missing the JWT — even though the user's browser session is still
+  perfectly valid. `gatewayAuthHeaders()` reads `connection.state` for the
+  current connection (via `getCurrentAgent()` from the `agents` SDK) on
   every gateway call, including image generation.
 
 Each gateway's Access application needs its own Linked App Token policy

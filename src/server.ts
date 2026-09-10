@@ -47,17 +47,21 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
   // The AI Gateway custom domains are behind Cloudflare Access. Chat messages
   // arrive over the WebSocket connection, not fresh HTTP requests, so the
   // user's Access JWT (only available on the original upgrade request, in
-  // `onConnect`) is cached per-connection here and forwarded on every
-  // gateway call made while handling that connection's messages.
-  private accessTokensByConnection = new Map<string, string>();
-
+  // `onConnect`) is stashed on the connection and forwarded on every gateway
+  // call made while handling that connection's messages.
+  //
+  // This MUST go through `connection.setState()`, not an in-memory field on
+  // the agent instance: this DO hibernates when idle (`Agent.options
+  // .hibernate` defaults to `true`), which evicts the whole instance —
+  // including any plain class fields — from memory between messages. A new
+  // instance is constructed on wake, but `onConnect` is NOT re-run for the
+  // already-open socket, so anything cached outside the connection's own
+  // persisted attachment is silently lost after the first hibernation cycle.
+  // `connection.setState()`/`connection.state` are backed by that attachment
+  // (`ws.serializeAttachment`/`deserializeAttachment`) and survive it.
   onConnect(connection: Connection, ctx: ConnectionContext) {
     const token = extractAccessToken(ctx.request);
-    if (token) this.accessTokensByConnection.set(connection.id, token);
-  }
-
-  onClose(connection: Connection) {
-    this.accessTokensByConnection.delete(connection.id);
+    if (token) connection.setState({ accessToken: token });
   }
 
   onStart() {
@@ -112,9 +116,8 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
   // alongside the AI Gateway authorization header.
   private gatewayAuthHeaders(): Record<string, string> {
     const { connection } = getCurrentAgent();
-    const accessToken = connection
-      ? this.accessTokensByConnection.get(connection.id)
-      : undefined;
+    const accessToken = (connection?.state as { accessToken?: string } | null)
+      ?.accessToken;
     return {
       "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`,
       ...(accessToken ? { "Cf-Access-Token": accessToken } : {})

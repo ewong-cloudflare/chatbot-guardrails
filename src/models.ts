@@ -1,4 +1,4 @@
-export const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+export const DEFAULT_MODEL = "@cf/moonshotai/kimi-k2.6";
 
 // Every model selectable in the admin panel's "Chat models" list and, once
 // enabled there, the chat model dropdown.

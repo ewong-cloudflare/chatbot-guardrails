@@ -104,9 +104,12 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
   }
 
   // Headers for every AI Gateway custom-domain request. The gateway domains
-  // sit behind Cloudflare Access, so the current connection's cached Access
-  // JWT (see `onConnect`) is forwarded as the request credential, alongside
-  // the AI Gateway authorization header.
+  // sit behind Cloudflare Access, protected by a "Linked App Token" policy
+  // that trusts JWTs issued for the chatbot's own Access application. The
+  // current connection's cached Access JWT (see `onConnect`) is forwarded in
+  // the `Cf-Access-Token` header (NOT `Cf-Access-Jwt-Assertion` — that's for
+  // a token already issued for the *target* app, which this JWT isn't),
+  // alongside the AI Gateway authorization header.
   private gatewayAuthHeaders(): Record<string, string> {
     const { connection } = getCurrentAgent();
     const accessToken = connection
@@ -114,7 +117,7 @@ export class ChatAgent extends AIChatAgent<Env, ChatState> {
       : undefined;
     return {
       "cf-aig-authorization": `Bearer ${this.env.CLOUDFLARE_API_TOKEN}`,
-      ...(accessToken ? { "Cf-Access-Jwt-Assertion": accessToken } : {})
+      ...(accessToken ? { "Cf-Access-Token": accessToken } : {})
     };
   }
 

@@ -140,6 +140,41 @@ Configure these vars in `wrangler.jsonc`:
 | `ACCESS_TEAM_DOMAIN` | `realacmecorp.cloudflareaccess.com` |
 | `ACCESS_AUD`         | your Access application AUD tag     |
 
+## Identity-aware AI Gateway (Linked App Token)
+
+Both AI Gateway custom domains sit behind Cloudflare Access. Rather than a
+single static `cf-aig-authorization` token for every user, the Worker
+forwards the caller's own chatbot Access JWT to the gateway on every request
+(`ChatAgent.gatewayAuthHeaders()` in `src/server.ts`), so each AI Gateway
+request is attributable to the authenticated user.
+
+This relies on a **Linked App Token** policy
+([docs](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/linked-app-token/)),
+configured on each gateway's Access application, with a "Service Auth" /
+Linked App Token rule pointing at the chatbot's own Access application
+(`app_uid`). That's what lets a JWT issued for `chatbot.acmecorp.work` be
+accepted on `ai-gw-guardrails.acmecorp.work` / `ai-gw-noguardrails.acmecorp.work`
+— they're separate Access apps with different audiences, and Access
+normally rejects a JWT presented to the wrong app's audience.
+
+Two details that are easy to get wrong:
+
+- **Header name:** the forwarded JWT must be sent as **`Cf-Access-Token`**,
+  not `Cf-Access-Jwt-Assertion`. The latter is for a token already issued
+  for the target app; the former is what Access's Linked App Token check
+  expects when forwarding a token issued for a _different_ (linked) app.
+- **Where the JWT comes from:** chat messages travel over a WebSocket
+  connection, not fresh HTTP requests, so the JWT is only available on the
+  original upgrade request. `ChatAgent.onConnect` extracts it (via
+  `extractAccessToken` in `src/auth.ts`) and caches it per-connection;
+  `onClose` evicts it. `gatewayAuthHeaders()` looks up the cached token for
+  the current connection (via `getCurrentAgent()` from the `agents` SDK) on
+  every gateway call, including image generation.
+
+Each gateway's Access application needs its own Linked App Token policy
+pointing at the chatbot app — this is a Zero Trust dashboard/API
+configuration, not something the Worker can set up itself.
+
 ## Blocked-request errors
 
 When AI Gateway blocks a message, the chat shows an inline error explaining the

@@ -1,7 +1,7 @@
 export const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-// Every Workers AI LLM listed at
-// https://developers.cloudflare.com/workers-ai/platform/pricing/
+// Every model selectable in the admin panel's "Chat models" list and, once
+// enabled there, the chat model dropdown.
 export const ALL_MODELS: string[] = [
   // AI Gateway dynamic route (called via the gateway OpenAI-compat endpoint).
   "dynamic/dynamic_routing_demo",
@@ -38,3 +38,19 @@ export const ALL_MODELS: string[] = [
   "@cf/moonshotai/kimi-k2.7-code",
   "@cf/google/gemma-4-26b-a4b-it"
 ];
+
+// Entries in ALL_MODELS that aren't general-purpose text generation:
+// `llama-guard-3-8b` is a content-safety classifier (outputs a safe/unsafe
+// label, not conversational text), and the dynamic route is a gateway
+// routing feature rather than a fixed model. They stay selectable in the
+// admin panel, but are excluded from the default enabled set below.
+const NON_TEXT_GENERATION_MODELS = new Set([
+  "dynamic/dynamic_routing_demo",
+  "@cf/meta/llama-guard-3-8b"
+]);
+
+// Default enabled models when an admin hasn't customized the list: every
+// text-generation model, i.e. everything except NON_TEXT_GENERATION_MODELS.
+export const TEXT_GENERATION_MODELS: string[] = ALL_MODELS.filter(
+  (id) => !NON_TEXT_GENERATION_MODELS.has(id)
+);

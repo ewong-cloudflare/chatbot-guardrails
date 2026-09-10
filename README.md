@@ -112,7 +112,7 @@ The `CLOUDFLARE_API_TOKEN` authenticates every AI Gateway request (chat completi
 
 The model dropdown sits in the controls bar above the chat input, alongside the guardrails toggle. It lists every Workers AI LLM from the [pricing page](https://developers.cloudflare.com/workers-ai/platform/pricing/) (defined in `src/models.ts`). The selected model is persisted in the chat agent's Durable Object state (`setModel` RPC).
 
-Use the **Chat models** section of `/admin` to choose which models appear in that dropdown — selecting none means all models are available.
+Use the **Chat models** section of `/admin` to choose which models appear in that dropdown. Selecting none falls back to the default set — every text-generation model, excluding the content-safety classifier (`llama-guard-3-8b`) and the dynamic-routing demo entry, which stay selectable but start disabled. Use **Enable all** to opt back into every model, including those.
 
 ## Parameters panel
 

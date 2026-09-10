@@ -50,7 +50,7 @@ import {
   WarningIcon
 } from "@phosphor-icons/react";
 import { useBranding } from "./useBranding";
-import { ALL_MODELS, DEFAULT_MODEL } from "./models";
+import { DEFAULT_MODEL, TEXT_GENERATION_MODELS } from "./models";
 
 // ── Attachment helpers ────────────────────────────────────────────────
 
@@ -396,7 +396,7 @@ function Chat() {
 
   const enabledModels = branding.enabledModels.length
     ? branding.enabledModels
-    : ALL_MODELS;
+    : TEXT_GENERATION_MODELS;
   const modelOptions = enabledModels.includes(model)
     ? enabledModels
     : [model, ...enabledModels];

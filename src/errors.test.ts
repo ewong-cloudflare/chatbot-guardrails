@@ -88,6 +88,15 @@ describe("describeGatewayError", () => {
       "Something went wrong while generating a response. Please try again."
     );
   });
+
+  it("maps an Access-protected gateway rejection to a clear message", () => {
+    const err = new Error(
+      '401 {"error":"invalid_token","error_description":"Missing or invalid access token","resource_metadata":"https://ai-gw-noguardrails.acmecorp.work/.well-known/cloudflare-access-protected-resource/compat/chat/completions"}'
+    );
+    expect(describeGatewayError(err)).toBe(
+      "AI Gateway couldn't verify your Cloudflare Access session. Please refresh the page and sign in again."
+    );
+  });
 });
 
 describe("isGatewayBlockMessage", () => {

@@ -1,6 +1,9 @@
 const GENERIC =
   "Something went wrong while generating a response. Please try again.";
 
+const ACCESS_DENIED =
+  "AI Gateway couldn't verify your Cloudflare Access session. Please refresh the page and sign in again.";
+
 const GUARDRAIL_PROMPT = "Your prompt was blocked by a content guardrail.";
 const GUARDRAIL_RESPONSE = "The response was blocked by a content guardrail.";
 const DLP_REQUEST =
@@ -81,6 +84,15 @@ function collectErrorText(error: unknown): string {
   return String(error);
 }
 
+// True when the AI Gateway custom domain's Cloudflare Access protection
+// rejected the request (missing/invalid Access JWT), as opposed to the
+// gateway itself blocking the content or a generic failure.
+function isAccessDeniedText(text: string): boolean {
+  return /cloudflare-access-protected-resource|missing or invalid access token/i.test(
+    text
+  );
+}
+
 export function describeGatewayError(error: unknown): string {
   const text = collectErrorText(error);
 
@@ -94,5 +106,6 @@ export function describeGatewayError(error: unknown): string {
       return base;
     }
   }
+  if (isAccessDeniedText(text)) return ACCESS_DENIED;
   return GENERIC;
 }

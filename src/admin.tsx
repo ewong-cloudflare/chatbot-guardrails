@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { DEFAULT_BRANDING, type Branding } from "./branding";
 import { applyBranding, fetchBranding, saveBranding } from "./useBranding";
-import { ALL_MODELS, TEXT_GENERATION_MODELS } from "./models";
+import { ALL_MODELS, REASONING_MODELS } from "./models";
 
 const inputClass =
   "w-full px-3 py-2 text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-accent";
@@ -53,27 +53,25 @@ export default function Admin() {
   const update = (patch: Partial<Branding>) =>
     setBranding((b) => ({ ...b, ...patch }));
 
-  // Empty enabledModels means "use the default set" — every text-generation
-  // model. Non-text entries (content-safety classifier, dynamic route) are
-  // still selectable here, but start unchecked.
+  // Empty enabledModels means "use the default set" — every model tagged
+  // Reasoning in the Workers AI catalog, plus the dynamic-routing demo.
+  // Everything else stays selectable here, but starts unchecked.
   const isModelEnabled = (name: string) =>
     branding.enabledModels.length === 0
-      ? TEXT_GENERATION_MODELS.includes(name)
+      ? REASONING_MODELS.includes(name)
       : branding.enabledModels.includes(name);
 
   const toggleModel = (name: string) =>
     setBranding((b) => {
-      const base = b.enabledModels.length
-        ? b.enabledModels
-        : TEXT_GENERATION_MODELS;
+      const base = b.enabledModels.length ? b.enabledModels : REASONING_MODELS;
       const set = new Set(base);
       if (set.has(name)) set.delete(name);
       else set.add(name);
       // Collapse back to the empty "use defaults" state when the set exactly
-      // matches the default text-generation set again.
+      // matches the default reasoning-models set again.
       const isDefault =
-        set.size === TEXT_GENERATION_MODELS.length &&
-        TEXT_GENERATION_MODELS.every((m) => set.has(m));
+        set.size === REASONING_MODELS.length &&
+        REASONING_MODELS.every((m) => set.has(m));
       return {
         ...b,
         enabledModels: isDefault ? [] : [...set]
@@ -196,7 +194,7 @@ export default function Admin() {
           <Field label="Chat models">
             <div className="flex items-center justify-between mb-1">
               <Text size="xs" variant="secondary">
-                Models shown in the chat toggle (none = text-generation
+                Models shown in the chat toggle (none = reasoning-model
                 defaults)
               </Text>
               <div className="flex items-center gap-2">

@@ -4,7 +4,7 @@ export interface Branding {
   accentColor: string;
   logoDataUrl: string;
   // Model IDs selectable in the chat model toggle. Empty = default set
-  // (text-generation models only — see TEXT_GENERATION_MODELS in models.ts).
+  // (reasoning models only — see REASONING_MODELS in models.ts).
   enabledModels: string[];
 }
 
